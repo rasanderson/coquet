@@ -1,0 +1,10 @@
+name: coquet
+title: coquet
+username: naturalandenvironmentalscience
+account: naturalandenvironmentalscience
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 15022436
+bundleId: 10558932
+url: https://naturalandenvironmentalscience.shinyapps.io/coquet/
+version: 1
