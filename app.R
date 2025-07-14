@@ -12,7 +12,8 @@ geojson_url <- "https://services-eu1.arcgis.com/MSNNjkZ51iVh8yBj/arcgis/rest/ser
 ui <- fluidPage(
   titlePanel("Northumbrian Water Storm Overflow Activity"),
   DTOutput(outputId = "table"),
-  downloadButton("download_csv", "Download CSV"),
+  downloadButton("download_daily_csv", "Download today's flow CSV"),
+  downloadButton("download_all_csv",   "Download all flow CSV"),
   
   leafletOutput("map", height = "800px")
 )
@@ -40,12 +41,24 @@ server <- function(input, output, session) {
   })
   
   
-  output$download_csv <- downloadHandler(
+  output$download_daily_csv <- downloadHandler(
     filename = function() {
-      paste0("storm_overflow_data.csv")
+      paste0("storm_overflow_data_", format(Sys.Date(), "%Y-%m-%d"), ".csv")
     },
     content = function(file) {
-      write.csv(data.frame(geo_data()), file, row.names = FALSE)
+      # Columns 11 and 12 duplicate geometry
+      write.csv(data.frame(geo_data())[, -c(11,12)], file, row.names = FALSE)
+    }
+  )
+  
+  
+  output$download_all_csv <- downloadHandler(
+    filename = function() {
+      paste0("storm_overflow_data_all.csv")
+    },
+    content = function(file) {
+      all_data <- read.csv("cumulative_flow.csv", row.names = NULL)
+      write.csv(all_data, file, row.names = FALSE)
     }
   )  
   
