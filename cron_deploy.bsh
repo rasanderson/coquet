@@ -4,7 +4,7 @@
 #!/bin/bash
 
 # Step 1: Run R script to generate RData
-Rscript generate_data.R
+Rscript /home/nras/coquet/generate_data.R
 
 # Step 2: Deploy the Shiny app
 Rscript -e "rsconnect::deployApp('home/nras/coquet/app.R')"
