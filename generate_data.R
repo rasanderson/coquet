@@ -27,6 +27,8 @@ today_data <- today_data[, -c(11, 12)] # don't repeat geometry
 # Daily data
 # Get the current date in yyyymmdd format
 date_str <- format(Sys.Date(), "%Y%m%d")
+# Also add query data as a column to output table
+today_data$query_date <- format(Sys.Date(), "%Y-%m-%d")
 # Create the filename
 daily_file <- paste0("daily_data_", date_str, ".csv")
 write.csv(today_data, file = daily_file, row.names = FALSE)
