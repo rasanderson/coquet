@@ -30,7 +30,7 @@ date_str <- format(Sys.Date(), "%Y%m%d")
 # Also add query data as a column to output table
 today_data$query_date <- format(Sys.Date(), "%Y-%m-%d")
 # Create the filename
-daily_file <- paste0("/home/nras/coquet/daily_data_", date_str, ".csv")
+daily_file <- paste0("/home/nras/coquet/data_store/daily_data_", date_str, ".csv")
 write.csv(today_data, file = daily_file, row.names = FALSE)
 
 if(!file.exists("/home/nras/coquet/cumulative_flow.csv")){

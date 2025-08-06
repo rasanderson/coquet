@@ -12,7 +12,7 @@ geojson_url <- "https://services-eu1.arcgis.com/MSNNjkZ51iVh8yBj/arcgis/rest/ser
 ui <- fluidPage(
   titlePanel("Northumbrian Water Storm Overflow Activity"),
   DTOutput(outputId = "table"),
-  downloadButton("download_daily_csv", "Download today's flow CSV"),
+  #downloadButton("download_daily_csv", "Download today's flow CSV"),
   downloadButton("download_all_csv",   "Download all flow CSV"),
   
   leafletOutput("map", height = "800px")
