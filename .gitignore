@@ -2,4 +2,4 @@
 *.csv
 *.log
 rsconnect/
-datastore/
+data_store/
