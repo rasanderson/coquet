@@ -1,2 +1,5 @@
 .Rproj.user/
 *.csv
+*.log
+rsconnect/
+data_store/
