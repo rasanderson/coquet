@@ -5,14 +5,18 @@ library(jsonlite)
 library(sf)
 library(DT)
 
-# GeoJSON URL
-geojson_url <- "https://services-eu1.arcgis.com/MSNNjkZ51iVh8yBj/arcgis/rest/services/Northumbrian_Water_Storm_Overflow_Activity_2_view/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson"
+# GeoJSON URLs
+# Storm overflow activity data from Northumbrian Water
+geojson_soa_url <- "https://services-eu1.arcgis.com/MSNNjkZ51iVh8yBj/arcgis/rest/services/Northumbrian_Water_Storm_Overflow_Activity_2_view/FeatureServer/0/query?outFields=*&where=1%3D1&f=geojson"
+# Northumbrian Water River Basin Districts (RBDs)
+geojson_rbd_url <- "https://environment.data.gov.uk/catchment-planning/RiverBasinDistrict/3.geojson"
 
 # Define UI
 ui <- fluidPage(
   titlePanel("Northumbrian Water Storm Overflow Activity"),
   # downloadButton("download_daily_csv", "Download today's flow CSV"),
   downloadButton("download_all_csv", "Download all flow CSV"),
+  checkboxInput("show_rbd", "Show River Basin District (RBD)", value = FALSE),
   fluidRow(
     column(
       width = 6,
@@ -28,8 +32,8 @@ ui <- fluidPage(
 # Define Server
 server <- function(input, output, session) {
   # Load GeoJSON data
-  geo_data <- reactive({
-    req <- GET(geojson_url)
+  soa_data <- reactive({
+    req <- GET(geojson_soa_url)
     geojson <- content(req, as = "text", encoding = "UTF-8")
     data <- st_read(geojson)
 
@@ -42,8 +46,15 @@ server <- function(input, output, session) {
     return(data)
   })
 
+  rbd_data <- reactive({
+    req <- GET(geojson_rbd_url)
+    geojson <- content(req, as = "text", encoding = "UTF-8")
+    rbd <- st_read(geojson)
+    st_collection_extract(rbd, "POLYGON")
+  })
+
   output$table <- renderDT({
-    my_tbl <- data.frame(geo_data())
+    my_tbl <- data.frame(soa_data())
     hidden_cols <- c("OBJECTID", "Company", "geometry")
     keep_cols <- setdiff(names(my_tbl), hidden_cols)
     datatable(my_tbl[, keep_cols, drop = FALSE])
@@ -56,7 +67,7 @@ server <- function(input, output, session) {
     },
     content = function(file) {
       # Columns 11 and 12 duplicate geometry
-      write.csv(data.frame(geo_data())[, -c(11, 12)], file, row.names = FALSE)
+      write.csv(data.frame(soa_data())[, -c(11, 12)], file, row.names = FALSE)
     }
   )
 
@@ -73,7 +84,7 @@ server <- function(input, output, session) {
 
   # # Render Leaflet map
   output$map <- renderLeaflet({
-    leaflet(geo_data()) %>%
+    map <- leaflet(soa_data()) %>%
       addTiles() %>%
       addCircleMarkers(
         radius = 5,
@@ -91,6 +102,22 @@ server <- function(input, output, session) {
           "<strong>Last Updated:</strong> ", LastUpdated
         )
       )
+
+    if (isTRUE(input$show_rbd)) {
+      map <- map %>%
+        addPolygons(
+          data = rbd_data(),
+          color = "#b22222",
+          weight = 2,
+          fillColor = "#b22222",
+          fillOpacity = 0.08,
+          opacity = 0.9,
+          group = "RBD",
+          popup = ~name
+        )
+    }
+
+    map
   })
 }
 
