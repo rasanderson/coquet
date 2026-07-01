@@ -11,11 +11,18 @@ geojson_url <- "https://services-eu1.arcgis.com/MSNNjkZ51iVh8yBj/arcgis/rest/ser
 # Define UI
 ui <- fluidPage(
   titlePanel("Northumbrian Water Storm Overflow Activity"),
-  DTOutput(outputId = "table"),
-  #downloadButton("download_daily_csv", "Download today's flow CSV"),
-  downloadButton("download_all_csv",   "Download all flow CSV"),
-  
-  leafletOutput("map", height = "800px")
+  # downloadButton("download_daily_csv", "Download today's flow CSV"),
+  downloadButton("download_all_csv", "Download all flow CSV"),
+  fluidRow(
+    column(
+      width = 6,
+      div(style = "overflow-x: auto;", DTOutput(outputId = "table"))
+    ),
+    column(
+      width = 6,
+      leafletOutput("map", height = "800px")
+    )
+  )
 )
 
 # Define Server
@@ -25,33 +32,35 @@ server <- function(input, output, session) {
     req <- GET(geojson_url)
     geojson <- content(req, as = "text", encoding = "UTF-8")
     data <- st_read(geojson)
-    
+
     # Convert timestamps
     data$StatusStart <- as.POSIXct(data$StatusStart / 1000, origin = "1970-01-01", tz = "UTC")
     data$LatestEventStart <- as.POSIXct(data$LatestEventStart / 1000, origin = "1970-01-01", tz = "UTC")
     data$LatestEventEnd <- as.POSIXct(data$LatestEventEnd / 1000, origin = "1970-01-01", tz = "UTC")
     data$LastUpdated <- as.POSIXct(data$LastUpdated / 1000, origin = "1970-01-01", tz = "UTC")
-    
+
     return(data)
   })
-  
+
   output$table <- renderDT({
     my_tbl <- data.frame(geo_data())
-    datatable(my_tbl)
+    hidden_cols <- c("OBJECTID", "Company", "geometry")
+    keep_cols <- setdiff(names(my_tbl), hidden_cols)
+    datatable(my_tbl[, keep_cols, drop = FALSE])
   })
-  
-  
+
+
   output$download_daily_csv <- downloadHandler(
     filename = function() {
       paste0("storm_overflow_data_", format(Sys.Date(), "%Y-%m-%d"), ".csv")
     },
     content = function(file) {
       # Columns 11 and 12 duplicate geometry
-      write.csv(data.frame(geo_data())[, -c(11,12)], file, row.names = FALSE)
+      write.csv(data.frame(geo_data())[, -c(11, 12)], file, row.names = FALSE)
     }
   )
-  
-  
+
+
   output$download_all_csv <- downloadHandler(
     filename = function() {
       paste0("storm_overflow_data_all.csv")
@@ -60,8 +69,8 @@ server <- function(input, output, session) {
       all_data <- read.csv("cumulative_flow.csv", row.names = NULL)
       write.csv(all_data, file, row.names = FALSE)
     }
-  )  
-  
+  )
+
   # # Render Leaflet map
   output$map <- renderLeaflet({
     leaflet(geo_data()) %>%
@@ -71,7 +80,7 @@ server <- function(input, output, session) {
         color = "blue",
         stroke = FALSE,
         fillOpacity = 0.7,
-        popup = ~paste0(
+        popup = ~ paste0(
           "<strong>Id:</strong> ", Id, "<br>",
           "<strong>Company:</strong> ", Company, "<br>",
           "<strong>Status:</strong> ", Status, "<br>",
