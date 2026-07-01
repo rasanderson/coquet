@@ -55,6 +55,13 @@ server <- function(input, output, session) {
     WaterBody = NA
   )
 
+  initial_management_whitelist <- c(
+    "Northumberland Rivers",
+    "Tees",
+    "Tyne",
+    "Wear"
+  )
+
   hierarchy_state <- reactiveValues(
     stack = data.frame(
       type = "RiverBasinDistrict",
@@ -93,6 +100,54 @@ server <- function(input, output, session) {
 
     assign(cache_key, data, envir = feature_cache)
     data
+  }
+
+  fetch_management_boundary <- function(id, name = id) {
+    cache_key <- paste("ManagementCatchmentBoundary", id, sep = "::")
+    if (exists(cache_key, envir = feature_cache, inherits = FALSE)) {
+      return(get(cache_key, envir = feature_cache, inherits = FALSE))
+    }
+
+    zip_url <- paste0(get_page_url("ManagementCatchment", id), "/shapefile.zip")
+    zip_file <- tempfile(fileext = ".zip")
+    extract_dir <- tempfile()
+    dir.create(extract_dir)
+
+    download.file(zip_url, zip_file, mode = "wb", quiet = TRUE)
+    unzip(zip_file, exdir = extract_dir)
+
+    layers <- st_layers(extract_dir)
+    layer_names <- if ("name" %in% names(layers)) {
+      as.character(layers[["name"]])
+    } else if ("layer_name" %in% names(layers)) {
+      as.character(layers[["layer_name"]])
+    } else {
+      character(0)
+    }
+
+    target_idx <- grep("Management_Catchments", layer_names, ignore.case = TRUE)
+    if (length(target_idx) == 0) {
+      stop(paste("No management catchment layer found for", id))
+    }
+
+    boundary <- suppressWarnings(st_read(extract_dir, layer = layer_names[target_idx[[1]]], quiet = TRUE))
+
+    if ("MANCAT_ID" %in% names(boundary)) {
+      boundary <- boundary[as.character(boundary$MANCAT_ID) == as.character(id), , drop = FALSE]
+    }
+
+    if (nrow(boundary) == 0) {
+      stop(paste("No management catchment geometry found for", id))
+    }
+
+    boundary <- st_transform(boundary, 4326)
+    boundary <- st_sf(
+      data.frame(id = id, name = name, stringsAsFactors = FALSE),
+      geometry = st_sfc(st_union(st_geometry(boundary)), crs = st_crs(boundary))
+    )
+
+    assign(cache_key, boundary, envir = feature_cache)
+    boundary
   }
 
   extract_children <- function(parent_type, parent_id) {
@@ -164,6 +219,11 @@ server <- function(input, output, session) {
   }
 
   summarize_child_feature <- function(child_type, child_id, child_name = child_id) {
+    if (identical(child_type, "ManagementCatchment")) {
+      boundary <- fetch_management_boundary(child_id, child_name)
+      return(list(polygons = boundary, lines = NULL))
+    }
+
     raw <- fetch_feature(child_type, child_id)
 
     child_polygons <- as_polygons(raw)
@@ -206,6 +266,9 @@ server <- function(input, output, session) {
     }
 
     child_info <- extract_children(current_type, current_id)
+    if (identical(current_type, "RiverBasinDistrict") && nrow(child_info) > 0) {
+      child_info <- child_info[child_info$name %in% initial_management_whitelist, , drop = FALSE]
+    }
     if (nrow(child_info) == 0) {
       return(list(layer_type = next_type, polygons = NULL, lines = NULL, next_type = next_type))
     }
